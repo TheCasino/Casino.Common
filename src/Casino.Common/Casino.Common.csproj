@@ -8,7 +8,8 @@
     <Description>A small collection of stuff I commonly use in my projects</Description>
     <PackageTags>Casino Boyale TheCasino Common</PackageTags>
     <PackageId>TheCasino.Common</PackageId>
-    <PackageLicenseExpression>Apache License 2.0</PackageLicenseExpression>
+    <PackageLicenseExpression></PackageLicenseExpression>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,13 @@
     <PackageReference Include="Discord.Net.WebSocket" Version="2.0.2-dev-20190326.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
     <PackageReference Include="Qmmands" Version="3.0.0-nightly-00180" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
