@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Casino.Common.Linq
 {
@@ -9,12 +8,12 @@ namespace Casino.Common.Linq
         public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this IDictionary dict)
         {
             var toReturn = new Dictionary<TKey, TValue>();
-            var keys = toReturn.Keys.Cast<TKey>();
 
-            foreach (var key in keys)
+            foreach (var key in dict.Keys)
             {
-                if(!toReturn.ContainsKey(key))
-                    toReturn.Add(key, (TValue)dict[key]);
+                var k = (TKey)key;
+                if (!toReturn.ContainsKey(k))
+                    toReturn.Add(k, (TValue)dict[key]);
             }
 
             return toReturn;
