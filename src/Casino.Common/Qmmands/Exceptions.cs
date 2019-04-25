@@ -8,4 +8,11 @@ namespace Casino.Common.Qmmands
         {
         }
     }
+
+    public class MissingParserException : Exception
+    {
+        public MissingParserException(Type type) : base($"Custom parser was not passed when fetching the primite {type}")
+        {
+        }
+    }
 }

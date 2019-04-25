@@ -1,13 +1,17 @@
-﻿using System;
+﻿using Casino.Common.Linq;
+using Qmmands;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Qmmands;
 
 namespace Casino.Common.Qmmands
 {
     public static class Extensions
     {
+        private static IDictionary<Type, object> _parsers;
+
         /// <summary>
         /// Crawls the specified assembly for classes that inherit from <see cref="TypeParser{T}"/> and adds them to the <see cref="CommandService"/>.
         /// </summary>
@@ -52,6 +56,46 @@ namespace Casino.Common.Qmmands
             var parsers = assembly.GetTypes().Where(x => typeParserInterface.IsAssignableFrom(x));
 
             return parsers.ToArray();
+        }
+
+        /// <summary>
+        /// Gets the primitive type parser for the specified type.
+        /// </summary>
+        /// <typeparam name="T">The type of the parser you want to get.</typeparam>
+        /// <param name="commands">Your <see cref="CommandService"/></param>
+        /// <returns>The primitive parser corresponding to that type, null if none is found.</returns>
+        public static PrimiteTypeParser<T> GetPrimiteTypeParser<T>(this CommandService commands)
+        {
+            Type type;
+
+            if (_parsers is null)
+            {
+                type = commands.GetType();
+
+                var field = type.GetField("_primitiveTypeParsers",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                if (field is null)
+                    throw new QuahuRenamedException("_primitiveTypeParsers");
+
+                var gen = (IDictionary) field.GetValue(commands);
+
+                _parsers = gen.ToDictionary<Type, object>();
+            }
+
+            if (!_parsers.TryGetValue(typeof(T), out var parser))
+            {
+                return null;
+            }
+
+            type = parser.GetType();
+
+            var method = type.GetMethod("TryParse");
+
+            if (method is null)
+                throw new QuahuRenamedException("TryParse");
+
+            return new PrimiteTypeParser<T>(method, parser);
         }
     }
 }
