@@ -1,27 +1,21 @@
-﻿using System;
-using Qmmands;
+﻿using Qmmands;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Casino.Common.Qmmands
 {
-    /// <inheritdoc />
     /// <summary>
     /// A wrapper class for the internal primite type parsers.
     /// </summary>
     /// <typeparam name="T">The type that the parser parses.</typeparam>
-    public sealed class PrimiteTypeParser<T> : TypeParser<T>
+    public sealed class PrimiteTypeParser<T>
     {
         private readonly MethodInfo _parseMethod;
         private readonly object _parser;
-        private readonly Func<Parameter, string, CommandContext, Task<TypeParserResult<T>>> _func;
 
-        internal PrimiteTypeParser(MethodInfo parseMethod, object parser,
-            Func<Parameter, string, CommandContext, Task<TypeParserResult<T>>> func = null)
+        internal PrimiteTypeParser(MethodInfo parseMethod, object parser)
         {
             _parseMethod = parseMethod;
             _parser = parser;
-            _func = func;
         }
 
         /// <summary>
@@ -39,22 +33,6 @@ namespace Casino.Common.Qmmands
             output = (T)@params[2];
 
             return result;
-        }
-
-
-        /// <inheritdoc />
-        public override
-#if NETCOREAPP
-        ValueTask<TypeParserResult<T>>
-#else
-        Task<TypeParserResult<T>>
-#endif
-        ParseAsync(Parameter parameter, string value, CommandContext context, IServiceProvider provider)
-        {
-            if (_func is null)
-                throw new MissingParserException(typeof(T));
-
-            return _func(parameter, value, context);
         }
     }
 }
