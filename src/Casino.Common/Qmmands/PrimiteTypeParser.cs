@@ -41,11 +41,17 @@ namespace Casino.Common.Qmmands
             return result;
         }
 
+
         /// <inheritdoc />
-        public override Task<TypeParserResult<T>> ParseAsync(Parameter parameter, string value, CommandContext context,
-            IServiceProvider provider)
+        public override
+#if NETCOREAPP
+        ValueTask<TypeParserResult<T>>
+#else
+        Task<TypeParserResult<T>>
+#endif
+        ParseAsync(Parameter parameter, string value, CommandContext context, IServiceProvider provider)
         {
-            if(_func is null)
+            if (_func is null)
                 throw new MissingParserException(typeof(T));
 
             return _func(parameter, value, context);
