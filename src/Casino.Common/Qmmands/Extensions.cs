@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Casino.Common.Qmmands
 {
@@ -63,8 +64,10 @@ namespace Casino.Common.Qmmands
         /// </summary>
         /// <typeparam name="T">The type of the parser you want to get.</typeparam>
         /// <param name="commands">Your <see cref="CommandService"/></param>
+        /// <param name="func">The custom parsing to be passed to the new parser.</param>
         /// <returns>The primitive parser corresponding to that type, null if none is found.</returns>
-        public static PrimiteTypeParser<T> GetPrimiteTypeParser<T>(this CommandService commands)
+        public static PrimiteTypeParser<T> GetPrimiteTypeParser<T>(this CommandService commands,
+            Func<Parameter, string, CommandContext, Task<TypeParserResult<T>>> func = null)
         {
             Type type;
 
@@ -95,7 +98,7 @@ namespace Casino.Common.Qmmands
             if (method is null)
                 throw new QuahuRenamedException("TryParse");
 
-            return new PrimiteTypeParser<T>(method, parser);
+            return new PrimiteTypeParser<T>(method, parser, func);
         }
     }
 }
