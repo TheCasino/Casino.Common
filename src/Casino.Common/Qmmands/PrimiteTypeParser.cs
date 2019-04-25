@@ -30,7 +30,7 @@ namespace Casino.Common.Qmmands
             var @params = new object[] { parameter, value, null };
 
             var result = (bool)_parseMethod.Invoke(_parser, @params);
-            output = (T)@params[2];
+            output = (T) (@params[2] ?? default(T));
 
             return result;
         }

@@ -53,7 +53,7 @@ namespace Casino.Common.Qmmands
             if (typeParserInterface is null)
                 throw new QuahuRenamedException("ITypeParser");
 
-            var parsers = assembly.GetTypes().Where(x => typeParserInterface.IsAssignableFrom(x));
+            var parsers = assembly.GetTypes().Where(x => typeParserInterface.IsAssignableFrom(x) && !x.IsAbstract);
 
             return parsers.ToArray();
         }
