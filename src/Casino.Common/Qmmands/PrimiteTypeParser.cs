@@ -4,15 +4,15 @@ using System.Reflection;
 namespace Casino.Common.Qmmands
 {
     /// <summary>
-    /// A wrapper class for the internal primite type parsers.
+    /// A wrapper class for the internal primitive type parsers.
     /// </summary>
     /// <typeparam name="T">The type that the parser parses.</typeparam>
-    public sealed class PrimiteTypeParser<T>
+    public sealed class PrimitiveTypeParser<T>
     {
         private readonly MethodInfo _parseMethod;
         private readonly object _parser;
 
-        internal PrimiteTypeParser(MethodInfo parseMethod, object parser)
+        internal PrimitiveTypeParser(MethodInfo parseMethod, object parser)
         {
             _parseMethod = parseMethod;
             _parser = parser;

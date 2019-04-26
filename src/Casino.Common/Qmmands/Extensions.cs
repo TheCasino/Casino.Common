@@ -64,7 +64,7 @@ namespace Casino.Common.Qmmands
         /// <typeparam name="T">The type of the parser you want to get.</typeparam>
         /// <param name="commands">Your <see cref="CommandService"/></param>
         /// <returns>The primitive parser corresponding to that type, null if none is found.</returns>
-        public static PrimiteTypeParser<T> GetPrimiteTypeParser<T>(this CommandService commands)
+        public static PrimitiveTypeParser<T> GetPrimiteTypeParser<T>(this CommandService commands)
         {
             Type type;
 
@@ -95,7 +95,7 @@ namespace Casino.Common.Qmmands
             if (method is null)
                 throw new QuahuRenamedException("TryParse");
 
-            return new PrimiteTypeParser<T>(method, parser);
+            return new PrimitiveTypeParser<T>(method, parser);
         }
     }
 }
