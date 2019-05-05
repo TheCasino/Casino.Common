@@ -17,6 +17,8 @@ namespace Casino.Common
 
         private readonly object _queueLock;
 
+        private ScheduledTask _currentTask;
+
         public TaskQueue()
         {
             _taskQueue = new ConcurrentQueue<ScheduledTask>();
@@ -85,6 +87,8 @@ namespace Casino.Common
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(TaskQueue));
 
+                _currentTask.Cancel();
+
                 while (_taskQueue.TryDequeue(out var task))
                 {
                     task.Cancel();
@@ -101,48 +105,48 @@ namespace Casino.Common
                 if (_disposed)
                     break;
 
-                ScheduledTask task = null;
-
                 try
                 {
                     bool wait;
 
                     lock (_queueLock)
-                        wait = !_taskQueue.TryDequeue(out task);
+                        wait = !_taskQueue.TryDequeue(out _currentTask);
 
                     if (wait)
                         await Task.Delay(-1, _cts.Token);
 
-                    var time = task.ExecutionTime - DateTimeOffset.UtcNow;
+                    var time = _currentTask.ExecutionTime - DateTimeOffset.UtcNow;
 
                     if (time > TimeSpan.Zero)
                     {
                         await Task.Delay(time, _cts.Token);
                     }
 
-                    if (task.IsCancelled)
+                    if (_currentTask.IsCancelled)
                         continue;
 
-                    await task.Task(task.Object);
-                    task.Completed();
+                    await _currentTask.Task(_currentTask.Object);
+                    _currentTask.Completed();
                 }
                 catch (TaskCanceledException)
                 {
                     lock (_queueLock)
                     {
-                        if (task != null)
-                            _taskQueue.Enqueue(task);
+                        if (_currentTask != null && !_currentTask.IsCancelled)
+                            _taskQueue.Enqueue(_currentTask);
 
-                        var copy = _taskQueue.ToArray().Where(x => !x.IsCancelled)
-                            .OrderBy(x => x.ExecutionTime);
-
-                        //Didn't do ClearQueue() since nested lock
-                        while (_taskQueue.TryDequeue(out _))
+                        if (!_taskQueue.IsEmpty)
                         {
-                        }
+                            var copy = _taskQueue.ToArray().Where(x => !x.IsCancelled).OrderBy(x => x.ExecutionTime);
 
-                        foreach (var item in copy)
-                            _taskQueue.Enqueue(item);
+                            //Didn't do ClearQueue() since nested lock
+                            while (_taskQueue.TryDequeue(out _))
+                            {
+                            }
+
+                            foreach (var item in copy)
+                                _taskQueue.Enqueue(item);
+                        }
 
                         _cts.Dispose();
                         _cts = new CancellationTokenSource();
@@ -150,10 +154,10 @@ namespace Casino.Common
                 }
                 catch (Exception e)
                 {
-                    if (task != null)
-                        task.Exception = e;
+                    if (_currentTask != null)
+                        _currentTask.Exception = e;
 
-                    if (!(OnError is null))
+                    if (OnError != null)
                         await OnError(e);
                 }
             }
