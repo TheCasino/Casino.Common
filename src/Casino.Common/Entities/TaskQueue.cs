@@ -12,147 +12,150 @@ namespace Casino.Common
     /// </summary>
     public sealed class TaskQueue : IDisposable
     {
-        private ConcurrentQueue<ScheduledTask> _taskQueue;
+        private readonly ConcurrentQueue<ScheduledTask> _taskQueue;
         private CancellationTokenSource _cts;
 
         private readonly object _queueLock;
 
-        private TaskQueue()
+        public TaskQueue()
         {
             _taskQueue = new ConcurrentQueue<ScheduledTask>();
             _cts = new CancellationTokenSource();
 
             _queueLock = new object();
+            _ = HandleCallbacksAsync();
         }
 
         /// <summary>
         /// Event that fires whenever there is an exception from a scheduled task.
         /// </summary>
-        public event Func<Exception, Task> Error;
-
-        /// <summary>
-        /// Create a new instance of the <see cref="TaskQueue"/>.
-        /// </summary>
-        /// <returns>A <see cref="TaskQueue"/>.</returns>
-        public static TaskQueue Create()
-        {
-            var scheduler = new TaskQueue();
-
-            _ = scheduler.HandleCallsbackAsync();
-
-            return scheduler;
-        }
+        public event Func<Exception, Task> OnError;
 
         /// <summary>
         /// Schedule a new task.
         /// </summary>
         /// <param name="obj">An object this task depends upon.</param>
-        /// <param name="whenToRemove">The UNIX time in milliseconds of when this task needs to be executed.</param>
+        /// <param name="whenToRun">The time at when this task needs to be ran.</param>
         /// <param name="task">The task to be executed.</param>
-        /// <returns>A <see cref="Guid"/> that is unique for this task.</returns>
-        public Guid ScheduleTask(object obj, long whenToRemove, Func<Guid, object, Task> task)
+        /// <returns>A <see cref="ScheduledTask"/>.</returns>
+        public ScheduledTask ScheduleTask(object obj, DateTimeOffset whenToRun, Func<object, Task> task)
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(TaskQueue));
+            if (whenToRun - DateTimeOffset.UtcNow < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(whenToRun));
+
+            if (task is null)
+                throw new ArgumentNullException(nameof(task));
 
             lock (_queueLock)
             {
-                var key = Guid.NewGuid();
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(TaskQueue));
 
-                var toAdd = new ScheduledTask
-                {
-                    Object = obj,
-                    WhenToRemove = whenToRemove,
-                    Task = task,
-                    Key = key
-                };
+                var toAdd = new ScheduledTask(obj, whenToRun, task);
 
                 _taskQueue.Enqueue(toAdd);
-                _taskQueue = new ConcurrentQueue<ScheduledTask>(_taskQueue.OrderBy(x => x.WhenToRemove));
-
                 _cts.Cancel(true);
 
-                return key;
+                return toAdd;
             }
         }
 
         /// <summary>
-        /// Cancels a currently queued task.
+        /// Clears and cancels all the currently scheduled tasks from the queue.
         /// </summary>
-        /// <param name="key">The unique <see cref="Guid"/> for the task you want to cancel.</param>
-        public void CancelTask(Guid key)
+        public void ClearQueue()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(TaskQueue));
-
             lock (_queueLock)
             {
-                var removed = _taskQueue.Where(x => x.Key != key).OrderBy(x => x.WhenToRemove);
-                _taskQueue = new ConcurrentQueue<ScheduledTask>(removed.ToArray()); //collection overload enumerates collection
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(TaskQueue));
+
+                while (_taskQueue.TryDequeue(out var task))
+                {
+                    task.Cancel();
+                }
 
                 _cts.Cancel(true);
             }
         }
 
-        private async Task HandleCallsbackAsync()
+        private async Task HandleCallbacksAsync()
         {
             while (true)
             {
                 if (_disposed)
                     break;
 
+                ScheduledTask task = null;
+
                 try
                 {
-                    if (_taskQueue.IsEmpty)
+                    bool wait;
+
+                    lock (_queueLock)
+                        wait = !_taskQueue.TryDequeue(out task);
+
+                    if (wait)
                         await Task.Delay(-1, _cts.Token);
 
-                    if (!_taskQueue.TryPeek(out var task))
-                        continue;
+                    var time = task.WhenToRun - DateTimeOffset.UtcNow;
 
-                    var when = DateTimeOffset.FromUnixTimeMilliseconds(task.WhenToRemove) - DateTimeOffset.UtcNow;
-
-                    if (when > TimeSpan.Zero)
+                    if (time > TimeSpan.Zero)
                     {
-                        await Task.Delay(when, _cts.Token);
+                        await Task.Delay(time, _cts.Token);
                     }
 
-                    if (_taskQueue.TryDequeue(out task))
-                        await task.Task(task.Key, task.Object);
+                    if (task.IsCancelled)
+                        continue;
+
+                    await task.Task(task.Object);
+                    task.Tcs.SetResult(true);
                 }
                 catch (TaskCanceledException)
                 {
-                    _cts.Dispose();
-                    _cts = new CancellationTokenSource();
+                    lock (_queueLock)
+                    {
+                        if (task != null)
+                            _taskQueue.Enqueue(task);
+
+                        var copy = _taskQueue.ToArray().Where(x => !x.IsCancelled)
+                            .OrderBy(x => x.WhenToRun);
+
+                        //Didn't do ClearQueue() since nested lock
+                        while (_taskQueue.TryDequeue(out _))
+                        {
+                        }
+
+                        foreach(var item in copy)
+                            _taskQueue.Enqueue(item);
+
+                        _cts.Dispose();
+                        _cts = new CancellationTokenSource();
+                    }
                 }
                 catch (Exception e)
                 {
-                    await (Error is null ? Task.CompletedTask : Error(e));
+                    if (!(OnError is null))
+                        await OnError(e);
                 }
             }
-        }
-
-        private class ScheduledTask
-        {
-            public object Object { get; set; }
-            public long WhenToRemove { get; set; }
-            public Func<Guid, object, Task> Task { get; set; }
-            public Guid Key { get; set; }
         }
 
         private bool _disposed = false;
 
         private void Dispose(bool disposing)
         {
-            if (!_disposed)
-            {
-                if (disposing)
+            lock (_queueLock)
+                if (!_disposed)
                 {
-                    _cts.Cancel(true);
-                    _cts.Dispose();
-                }
+                    if (disposing)
+                    {
+                        _cts.Cancel(true);
+                        _cts.Dispose();
+                    }
 
-                _disposed = true;
-            }
+                    _disposed = true;
+                }
         }
 
         /// <inheritdoc />
@@ -163,5 +166,53 @@ namespace Casino.Common
         {
             Dispose(true);
         }
+    }
+
+    /// <summary>
+    /// An object that represents a scheduled task.
+    /// </summary>
+    public class ScheduledTask
+    {
+        /// <summary>
+        /// Whether the task has been cancelled or not.
+        /// </summary>
+        public bool IsCancelled { get; private set; }
+
+        /// <summary>
+        /// The object that will be passed to the tasks callback.
+        /// </summary>
+        public object Object { get; }
+
+        /// <summary>
+        /// When the task needs to be ran.
+        /// </summary>
+        public DateTimeOffset WhenToRun { get; }
+
+        internal TaskCompletionSource<bool> Tcs { get; }
+        internal Func<object, Task> Task { get; }
+
+        internal ScheduledTask(object obj, DateTimeOffset when, Func<object, Task> task)
+        {
+            Object = obj;
+            WhenToRun = when;
+            Task = task;
+
+            Tcs = new TaskCompletionSource<bool>();
+        }
+
+        /// <summary>
+        /// Cancels this task.
+        /// </summary>
+        public void Cancel()
+        {
+            IsCancelled = true;
+        }
+
+        /// <summary>
+        /// Waits until this task has been completed.
+        /// </summary>
+        /// <returns>An awaitable <see cref="System.Threading.Tasks.Task"/></returns>
+        public Task WaitForCompletionAsync()
+            => Tcs.Task;
     }
 }
