@@ -32,16 +32,31 @@ namespace Casino.Common
         public event Func<Exception, Task> OnError;
 
         /// <summary>
-        /// Schedule a new task.
+        /// Schedule a new task. 
         /// </summary>
-        /// <param name="obj">An object this task depends upon.</param>
-        /// <param name="whenToRun">The time at when this task needs to be ran.</param>
+        /// <param name="obj">An object that will be passed to the tasks callback.</param>
+        /// <param name="executeIn">How long to wait before execution.</param>
         /// <param name="task">The task to be executed.</param>
         /// <returns>A <see cref="ScheduledTask"/>.</returns>
-        public ScheduledTask ScheduleTask(object obj, DateTimeOffset whenToRun, Func<object, Task> task)
+        public ScheduledTask ScheduleTask(object obj, TimeSpan executeIn, Func<object, Task> task)
         {
-            if (whenToRun - DateTimeOffset.UtcNow < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(whenToRun));
+            if(executeIn < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(executeIn));
+
+            return ScheduleTask(obj, DateTimeOffset.UtcNow.Add(executeIn), task);
+        }
+
+        /// <summary>
+        /// Schedule a new task.
+        /// </summary>
+        /// <param name="obj">An object that will be passed to the tasks callback.</param>
+        /// <param name="whenToExecute">The time at when this task needs to be ran.</param>
+        /// <param name="task">The task to be executed.</param>
+        /// <returns>A <see cref="ScheduledTask"/>.</returns>
+        public ScheduledTask ScheduleTask(object obj, DateTimeOffset whenToExecute, Func<object, Task> task)
+        {
+            if (whenToExecute - DateTimeOffset.UtcNow < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(whenToExecute));
 
             if (task is null)
                 throw new ArgumentNullException(nameof(task));
@@ -51,7 +66,7 @@ namespace Casino.Common
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(TaskQueue));
 
-                var toAdd = new ScheduledTask(obj, whenToRun, task);
+                var toAdd = new ScheduledTask(obj, whenToExecute, task);
 
                 _taskQueue.Enqueue(toAdd);
                 _cts.Cancel(true);
@@ -98,7 +113,7 @@ namespace Casino.Common
                     if (wait)
                         await Task.Delay(-1, _cts.Token);
 
-                    var time = task.WhenToRun - DateTimeOffset.UtcNow;
+                    var time = task.ExecutionTime - DateTimeOffset.UtcNow;
 
                     if (time > TimeSpan.Zero)
                     {
@@ -109,7 +124,7 @@ namespace Casino.Common
                         continue;
 
                     await task.Task(task.Object);
-                    task.Tcs.SetResult(true);
+                    task.Completed();
                 }
                 catch (TaskCanceledException)
                 {
@@ -119,14 +134,14 @@ namespace Casino.Common
                             _taskQueue.Enqueue(task);
 
                         var copy = _taskQueue.ToArray().Where(x => !x.IsCancelled)
-                            .OrderBy(x => x.WhenToRun);
+                            .OrderBy(x => x.ExecutionTime);
 
                         //Didn't do ClearQueue() since nested lock
                         while (_taskQueue.TryDequeue(out _))
                         {
                         }
 
-                        foreach(var item in copy)
+                        foreach (var item in copy)
                             _taskQueue.Enqueue(item);
 
                         _cts.Dispose();
@@ -135,6 +150,9 @@ namespace Casino.Common
                 }
                 catch (Exception e)
                 {
+                    if (task != null)
+                        task.Exception = e;
+
                     if (!(OnError is null))
                         await OnError(e);
                 }
@@ -179,14 +197,37 @@ namespace Casino.Common
         public bool IsCancelled { get; private set; }
 
         /// <summary>
+        /// Whether the task has been completed or not.
+        /// </summary>
+        public bool HasCompleted { get; private set; }
+
+        /// <summary>
         /// The object that will be passed to the tasks callback.
         /// </summary>
         public object Object { get; }
 
         /// <summary>
-        /// When the task needs to be ran.
+        /// The time at when the task will execute.
         /// </summary>
-        public DateTimeOffset WhenToRun { get; }
+        public DateTimeOffset ExecutionTime { get; }
+
+        /// <summary>
+        /// Gets how long until this task executes.
+        /// </summary>
+        public TimeSpan ExecutesIn
+        {
+            get
+            {
+                var time = ExecutionTime - DateTimeOffset.UtcNow;
+
+                return time > TimeSpan.Zero ? time : TimeSpan.FromSeconds(-1);
+            }
+        }
+
+        /// <summary>
+        /// Gets the exception (if thrown) from execution.
+        /// </summary>
+        public Exception Exception { get; internal set; }
 
         internal TaskCompletionSource<bool> Tcs { get; }
         internal Func<object, Task> Task { get; }
@@ -194,7 +235,7 @@ namespace Casino.Common
         internal ScheduledTask(object obj, DateTimeOffset when, Func<object, Task> task)
         {
             Object = obj;
-            WhenToRun = when;
+            ExecutionTime = when;
             Task = task;
 
             Tcs = new TaskCompletionSource<bool>();
@@ -214,5 +255,11 @@ namespace Casino.Common
         /// <returns>An awaitable <see cref="System.Threading.Tasks.Task"/></returns>
         public Task WaitForCompletionAsync()
             => Tcs.Task;
+
+        internal void Completed()
+        {
+            Tcs.SetResult(true);
+            HasCompleted = true;
+        }
     }
 }
