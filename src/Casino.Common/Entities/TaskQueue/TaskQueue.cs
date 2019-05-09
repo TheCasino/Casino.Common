@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
@@ -78,6 +78,52 @@ namespace Casino.Common
         }
 
         /// <summary>
+        /// Schedules a new task.
+        /// </summary>
+        /// <typeparam name="T">The type you want your object in the callback to be.</typeparam>
+        /// <param name="obj">The object that you want to access in your callback.</param>
+        /// <param name="executeIn">How long to wait before execution.</param>
+        /// <param name="task">The task to be executed.</param>
+        /// <returns>A <see cref="ScheduledTask{T}"/></returns>
+        public ScheduledTask<T> ScheduleTask<T>(T obj, TimeSpan executeIn, Func<T, Task> task)
+        {
+            if (executeIn < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(executeIn));
+
+            return ScheduleTask(obj, DateTimeOffset.UtcNow.Add(executeIn), task);
+        }
+
+        /// <summary>
+        /// Schedules a new task.
+        /// </summary>
+        /// <typeparam name="T">The type you want your object in the callback to be.</typeparam>
+        /// <param name="obj">The object that you want to access in your callback.</param>
+        /// <param name="whenToExecute">The time at when this task needs to be ran.</param>
+        /// <param name="task">The task to be executed.</param>
+        /// <returns>A <see cref="ScheduledTask{T}"/></returns>
+        public ScheduledTask<T> ScheduleTask<T>(T obj, DateTimeOffset whenToExecute, Func<T, Task> task)
+        {
+            if (whenToExecute - DateTimeOffset.UtcNow < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(whenToExecute));
+
+            if (task is null)
+                throw new ArgumentNullException(nameof(task));
+
+            lock (_queueLock)
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(TaskQueue));
+
+                var toAdd = new ScheduledTask<T>(obj, whenToExecute, task);
+
+                _taskQueue.Enqueue(toAdd);
+                _cts.Cancel(true);
+
+                return toAdd;
+            }
+        }
+
+        /// <summary>
         /// Clears and cancels all the currently scheduled tasks from the queue.
         /// </summary>
         public void ClearQueue()
@@ -125,7 +171,7 @@ namespace Casino.Common
                     if (_currentTask.IsCancelled)
                         continue;
 
-                    await _currentTask.Task(_currentTask.Object);
+                    await _currentTask.ToExecute(_currentTask.Object);
                     _currentTask.Completed();
                 }
                 catch (TaskCanceledException)
@@ -168,6 +214,7 @@ namespace Casino.Common
         private void Dispose(bool disposing)
         {
             lock (_queueLock)
+            {
                 if (!_disposed)
                 {
                     if (disposing)
@@ -178,6 +225,7 @@ namespace Casino.Common
 
                     _disposed = true;
                 }
+            }
         }
 
         /// <inheritdoc />
@@ -187,83 +235,6 @@ namespace Casino.Common
         public void Dispose()
         {
             Dispose(true);
-        }
-    }
-
-    /// <summary>
-    /// An object that represents a scheduled task.
-    /// </summary>
-    public class ScheduledTask
-    {
-        /// <summary>
-        /// Whether the task has been cancelled or not.
-        /// </summary>
-        public bool IsCancelled { get; private set; }
-
-        /// <summary>
-        /// Whether the task has been completed or not.
-        /// </summary>
-        public bool HasCompleted { get; private set; }
-
-        /// <summary>
-        /// The object that will be passed to the tasks callback.
-        /// </summary>
-        public object Object { get; }
-
-        /// <summary>
-        /// The time at when the task will execute.
-        /// </summary>
-        public DateTimeOffset ExecutionTime { get; }
-
-        /// <summary>
-        /// Gets how long until this task executes.
-        /// </summary>
-        public TimeSpan ExecutesIn
-        {
-            get
-            {
-                var time = ExecutionTime - DateTimeOffset.UtcNow;
-
-                return time > TimeSpan.Zero ? time : TimeSpan.FromSeconds(-1);
-            }
-        }
-
-        /// <summary>
-        /// Gets the exception (if thrown) from execution.
-        /// </summary>
-        public Exception Exception { get; internal set; }
-
-        internal TaskCompletionSource<bool> Tcs { get; }
-        internal Func<object, Task> Task { get; }
-
-        internal ScheduledTask(object obj, DateTimeOffset when, Func<object, Task> task)
-        {
-            Object = obj;
-            ExecutionTime = when;
-            Task = task;
-
-            Tcs = new TaskCompletionSource<bool>();
-        }
-
-        /// <summary>
-        /// Cancels this task.
-        /// </summary>
-        public void Cancel()
-        {
-            IsCancelled = true;
-        }
-
-        /// <summary>
-        /// Waits until this task has been completed.
-        /// </summary>
-        /// <returns>An awaitable <see cref="System.Threading.Tasks.Task"/></returns>
-        public Task WaitForCompletionAsync()
-            => Tcs.Task;
-
-        internal void Completed()
-        {
-            Tcs.SetResult(true);
-            HasCompleted = true;
         }
     }
 }
