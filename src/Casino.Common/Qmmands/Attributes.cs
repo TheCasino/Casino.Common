@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Casino.Common.Qmmands
+namespace Casino.Qmmands
 {
     /// <inheritdoc />
     /// <summary>

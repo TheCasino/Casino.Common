@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Casino.Common.DependencyInjection
+namespace Casino.DependencyInjection
 {
     /// <summary>
     /// A class that serves as the base for services to be added to a <see cref="IServiceCollection"/>.

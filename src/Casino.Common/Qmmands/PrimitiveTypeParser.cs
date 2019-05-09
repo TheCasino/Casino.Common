@@ -1,7 +1,7 @@
 ﻿using Qmmands;
 using System.Reflection;
 
-namespace Casino.Common.Qmmands
+namespace Casino.Qmmands
 {
     /// <summary>
     /// A wrapper class for the internal primitive type parsers.

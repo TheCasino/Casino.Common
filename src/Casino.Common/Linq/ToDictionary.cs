@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 
-namespace Casino.Common.Linq
+namespace Casino.Linq
 {
     public static partial class Extenions
     {

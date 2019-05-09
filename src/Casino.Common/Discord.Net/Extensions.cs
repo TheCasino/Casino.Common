@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
 
-namespace Casino.Common.Discord.Net
+namespace Casino.Discord
 {
     public static class Extensions
     {
