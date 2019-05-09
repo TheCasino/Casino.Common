@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <Authors>TheCasino</Authors>
     <Company />
     <Product />
@@ -10,14 +10,15 @@
     <PackageId>TheCasino.Common</PackageId>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.1.2</Version>
+    <Version>1.1.4</Version>
+    <RootNamespace>Casino</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Discord.Net.Core" Version="2.0.2-dev-20190326.4" />
     <PackageReference Include="Discord.Net.WebSocket" Version="2.0.2-dev-20190326.4" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
-    <PackageReference Include="Qmmands" Version="3.0.0-nightly-00180" />
+    <PackageReference Include="Qmmands" Version="3.0.0-nightly-00187" />
   </ItemGroup>
 
   <ItemGroup>
