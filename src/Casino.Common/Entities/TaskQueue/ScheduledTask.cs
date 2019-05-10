@@ -10,8 +10,11 @@ namespace Casino.Common
     /// <typeparam name="T">The type you want your object to be in your task callback.</typeparam>
     public class ScheduledTask<T> : ScheduledTask
     {
+        public new T Object { get; }
+
         internal ScheduledTask(T obj, DateTimeOffset when, Func<T, Task> task) : base(obj, when, ob => task((T)ob))
         {
+            Object = obj;
         }
     }
 
