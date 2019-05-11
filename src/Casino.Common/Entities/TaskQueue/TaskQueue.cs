@@ -12,16 +12,16 @@ namespace Casino.Common
     /// </summary>
     public sealed class TaskQueue : IDisposable
     {
-        private readonly ConcurrentQueue<ScheduledTask> _taskQueue;
+        private readonly ConcurrentQueue<IScheduledTask> _taskQueue;
         private CancellationTokenSource _cts;
 
         private readonly object _queueLock;
 
-        private ScheduledTask _currentTask;
+        private IScheduledTask _currentTask;
 
         public TaskQueue()
         {
-            _taskQueue = new ConcurrentQueue<ScheduledTask>();
+            _taskQueue = new ConcurrentQueue<IScheduledTask>();
             _cts = new CancellationTokenSource();
 
             _queueLock = new object();
@@ -32,50 +32,6 @@ namespace Casino.Common
         /// Event that fires whenever there is an exception from a scheduled task.
         /// </summary>
         public event Func<Exception, Task> OnError;
-
-        /// <summary>
-        /// Schedule a new task. 
-        /// </summary>
-        /// <param name="obj">An object that will be passed to the tasks callback.</param>
-        /// <param name="executeIn">How long to wait before execution.</param>
-        /// <param name="task">The task to be executed.</param>
-        /// <returns>A <see cref="ScheduledTask"/>.</returns>
-        public ScheduledTask ScheduleTask(object obj, TimeSpan executeIn, Func<object, Task> task)
-        {
-            if(executeIn < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(executeIn));
-
-            return ScheduleTask(obj, DateTimeOffset.UtcNow.Add(executeIn), task);
-        }
-
-        /// <summary>
-        /// Schedule a new task.
-        /// </summary>
-        /// <param name="obj">An object that will be passed to the tasks callback.</param>
-        /// <param name="whenToExecute">The time at when this task needs to be ran.</param>
-        /// <param name="task">The task to be executed.</param>
-        /// <returns>A <see cref="ScheduledTask"/>.</returns>
-        public ScheduledTask ScheduleTask(object obj, DateTimeOffset whenToExecute, Func<object, Task> task)
-        {
-            if (whenToExecute - DateTimeOffset.UtcNow < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(whenToExecute));
-
-            if (task is null)
-                throw new ArgumentNullException(nameof(task));
-
-            lock (_queueLock)
-            {
-                if (_disposed)
-                    throw new ObjectDisposedException(nameof(TaskQueue));
-
-                var toAdd = new ScheduledTask(obj, whenToExecute, task);
-
-                _taskQueue.Enqueue(toAdd);
-                _cts.Cancel(true);
-
-                return toAdd;
-            }
-        }
 
         /// <summary>
         /// Schedules a new task.
@@ -114,7 +70,7 @@ namespace Casino.Common
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(TaskQueue));
 
-                var toAdd = new ScheduledTask<T>(obj, whenToExecute, task);
+                var toAdd = new ScheduledTask<T>(this, obj, whenToExecute, task);
 
                 _taskQueue.Enqueue(toAdd);
                 _cts.Cancel(true);
@@ -139,6 +95,17 @@ namespace Casino.Common
                 {
                     task.Cancel();
                 }
+
+                _cts.Cancel(true);
+            }
+        }
+
+        internal void Reschedule()
+        {
+            lock (_queueLock)
+            {
+                if(_disposed)
+                    throw new ObjectDisposedException(nameof(TaskQueue));
 
                 _cts.Cancel(true);
             }
@@ -171,7 +138,7 @@ namespace Casino.Common
                     if (_currentTask.IsCancelled)
                         continue;
 
-                    await _currentTask.ToExecute(_currentTask.Object);
+                    await _currentTask.ToExecute();
                     _currentTask.Completed();
                 }
                 catch (TaskCanceledException)
@@ -200,8 +167,7 @@ namespace Casino.Common
                 }
                 catch (Exception e)
                 {
-                    if (_currentTask != null)
-                        _currentTask.Exception = e;
+                    _currentTask?.SetException(e);
 
                     if (OnError != null)
                         await OnError(e);
@@ -230,7 +196,7 @@ namespace Casino.Common
 
         /// <inheritdoc />
         /// <summary>
-        /// Disposes of the <see cref="T:Casino.Common.TaskQueue" /> and frees up any managed resources.
+        /// Disposes of the <see cref="TaskQueue" /> and frees up any managed resources.
         /// </summary>
         public void Dispose()
         {
