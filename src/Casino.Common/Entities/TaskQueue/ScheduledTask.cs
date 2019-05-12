@@ -6,6 +6,17 @@ namespace Casino.Common
     /// <summary>
     /// An object that represents a task that has been scheduled.
     /// </summary>
+    public class ScheduledTask : ScheduledTask<object>
+    {
+        internal ScheduledTask(TaskQueue queue, object obj, DateTimeOffset when, Func<object, Task> task) : base(queue,
+            obj, when, task)
+        {
+        }
+    }
+
+    /// <summary>
+    /// An object that represents a task that has been scheduled.
+    /// </summary>
     /// <typeparam name="T">The type you want your object to be in your task callback.</typeparam>
     public class ScheduledTask<T> : IScheduledTask
     {
@@ -118,11 +129,7 @@ namespace Casino.Common
         Exception IScheduledTask.Exception => Exception;
 
         DateTimeOffset IScheduledTask.ExecutionTime => ExecutionTime;
-
-        object IScheduledTask.State => State;
-
-        Func<Task> IScheduledTask.ToExecute => () => ToExecute(State);
-
+        
         void IScheduledTask.Cancel()
         {
             IsCancelled = true;
@@ -138,18 +145,7 @@ namespace Casino.Common
         {
             Exception = ex;
         }
-    }
 
-    internal interface IScheduledTask
-    {
-        bool IsCancelled { get; }
-        Exception Exception { get; }
-        DateTimeOffset ExecutionTime { get; }
-        Func<Task> ToExecute { get; }
-        object State { get; }
-
-        void Cancel();
-        void Completed();
-        void SetException(Exception ex);
+        Task IScheduledTask.ExecuteAsync() => ToExecute(State);
     }
 }
