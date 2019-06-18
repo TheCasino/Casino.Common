@@ -1,7 +1,7 @@
-﻿using System.Reflection;
-using System.Threading.Tasks;
-using Discord;
+﻿using Discord;
 using Discord.WebSocket;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Casino.Discord
 {

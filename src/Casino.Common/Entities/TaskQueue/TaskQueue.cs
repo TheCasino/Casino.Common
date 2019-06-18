@@ -32,17 +32,6 @@ namespace Casino.Common
         /// </summary>
         public event Func<Exception, Task> OnError;
 
-        internal void Reschedule()
-        {
-            lock (_queueLock)
-            {
-                if(_disposed)
-                    throw new ObjectDisposedException(nameof(TaskQueue));
-
-                _cts.Cancel(true);
-            }
-        }
-
         private async Task HandleCallbacksAsync()
         {
             while (true)

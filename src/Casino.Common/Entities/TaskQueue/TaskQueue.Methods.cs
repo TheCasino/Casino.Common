@@ -166,5 +166,16 @@ namespace Casino.Common
         {
             Dispose(true);
         }
+
+        internal void Reschedule()
+        {
+            lock (_queueLock)
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(TaskQueue));
+
+                _cts.Cancel(true);
+            }
+        }
     }
 }

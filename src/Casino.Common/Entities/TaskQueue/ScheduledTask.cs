@@ -64,9 +64,9 @@ namespace Casino.Common
         public Exception Exception { get; private set; }
 
         internal TaskCompletionSource<bool> Tcs { get; }
-        internal Func<T, Task> ToExecute { get; }
+        internal Func<T, Task> ToExecute { get; private set; }
 
-        private readonly object _timeLock;
+        private readonly object _lock;
 
         internal ScheduledTask(TaskQueue queue, T obj, DateTimeOffset when, Func<T, Task> task)
         {
@@ -77,7 +77,7 @@ namespace Casino.Common
             ToExecute = task;
 
             Tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _timeLock = new object();
+            _lock = new object();
         }
 
         /// <summary>
@@ -92,26 +92,37 @@ namespace Casino.Common
         /// Change the time at which this task will now run.
         /// </summary>
         /// <param name="executeIn">How long to wait before this task is executed.</param>
-        public void Change(TimeSpan executeIn)
+        /// <param name="callback">The new callback for the task.</param>
+        public void Change(TimeSpan executeIn, Func<T, Task> callback = null)
         {
-            if(executeIn < TimeSpan.Zero)
+            if (executeIn < TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(executeIn));
 
-            Change(DateTimeOffset.UtcNow.Add(executeIn));
+            Change(DateTimeOffset.UtcNow.Add(executeIn), callback);
         }
 
         /// <summary>
         /// Change the time at which this task will now run.
         /// </summary>
         /// <param name="executeAt">When you want this task to execute at.</param>
-        public void Change(DateTimeOffset executeAt)
+        /// <param name="callback">The new callback for the task.</param>
+        public void Change(DateTimeOffset executeAt, Func<T, Task> callback = null)
         {
-            if(executeAt - DateTimeOffset.UtcNow < TimeSpan.Zero)
+            if (executeAt - DateTimeOffset.UtcNow < TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(executeAt));
 
-            lock (_timeLock)
+            lock (_lock)
             {
+                if (IsCancelled)
+                    throw new TaskCancelledException();
+
+                if (HasCompleted)
+                    throw new TaskCompletedException();
+
                 ExecutionTime = executeAt;
+
+                if (callback != null)
+                    ToExecute = callback;
 
                 Queue.Reschedule();
             }
@@ -129,16 +140,22 @@ namespace Casino.Common
         Exception IScheduledTask.Exception => Exception;
 
         DateTimeOffset IScheduledTask.ExecutionTime => ExecutionTime;
-        
+
         void IScheduledTask.Cancel()
         {
-            IsCancelled = true;
+            lock (_lock)
+            {
+                IsCancelled = true;
+            }
         }
 
         void IScheduledTask.Completed()
         {
-            Tcs.SetResult(true);
-            HasCompleted = true;
+            lock (_lock)
+            {
+                Tcs.SetResult(true);
+                HasCompleted = true;
+            }
         }
 
         void IScheduledTask.SetException(Exception ex)
