@@ -38,7 +38,7 @@ namespace Casino.Common
 
                 var toAdd = new ScheduledTask<T>(this, state, whenToExecute, callback);
 
-                _taskQueue.Enqueue(toAdd);
+                _collection.Add(toAdd);
                 _cts.Cancel(true);
 
                 return toAdd;
@@ -76,7 +76,7 @@ namespace Casino.Common
 
                 var toAdd = new ScheduledTask(this, state, whenToExecute, callback);
 
-                _taskQueue.Enqueue(toAdd);
+                _collection.Add(toAdd);
                 _cts.Cancel(true);
 
                 return toAdd;
@@ -116,7 +116,7 @@ namespace Casino.Common
 
                 var toAdd = new ScheduledTask(this, null, whenToExecute, _ => callback());
 
-                _taskQueue.Enqueue(toAdd);
+                _collection.Add(toAdd);
                 _cts.Cancel(true);
 
                 return toAdd;
@@ -149,23 +149,17 @@ namespace Casino.Common
                     throw new ObjectDisposedException(nameof(TaskQueue));
 
                 _currentTask.Cancel();
-
-                while (_taskQueue.TryDequeue(out var task))
-                {
-                    task.Cancel();
-                }
+                _collection.Clear();
 
                 _cts.Cancel(true);
             }
         }
 
         /// <summary>
-        /// Disposes of the <see cref="TaskQueue" /> and frees up any managed resources.
+        /// Disposes of the <see cref="TaskQueue"/> and frees up any managed resources.
         /// </summary>
         public void Dispose()
-        {
-            Dispose(true);
-        }
+            => Dispose(true);
 
         internal void Reschedule()
         {

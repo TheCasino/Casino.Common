@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Concurrent;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,16 +9,22 @@ namespace Casino.Common
     /// </summary>
     public sealed partial class TaskQueue : IDisposable
     {
-        private readonly ConcurrentQueue<IScheduledTask> _taskQueue;
+        private readonly PrioritisedCollection<IScheduledTask> _collection;
         private CancellationTokenSource _cts;
 
         private readonly object _queueLock;
 
         private IScheduledTask _currentTask;
 
-        public TaskQueue()
+        /// <summary>
+        /// Creates a new TaskQueue.
+        /// </summary>
+        /// <param name="capacity">The capicity for the internal collection.</param>
+        public TaskQueue(int? capacity)
         {
-            _taskQueue = new ConcurrentQueue<IScheduledTask>();
+            _collection = new PrioritisedCollection<IScheduledTask>(
+                tuple => tuple.Item1.ExecutionTime > tuple.Item2.ExecutionTime, capacity);
+
             _cts = new CancellationTokenSource();
 
             _queueLock = new object();
@@ -44,7 +48,7 @@ namespace Casino.Common
                     bool wait;
 
                     lock (_queueLock)
-                        wait = !_taskQueue.TryDequeue(out _currentTask);
+                        wait = !_collection.MoveNext(out _currentTask);
 
                     if (wait)
                         await Task.Delay(-1, _cts.Token);
@@ -52,9 +56,7 @@ namespace Casino.Common
                     var time = _currentTask.ExecutionTime - DateTimeOffset.UtcNow;
 
                     if (time > TimeSpan.Zero)
-                    {
                         await Task.Delay(time, _cts.Token);
-                    }
 
                     if (_currentTask.IsCancelled)
                         continue;
@@ -67,20 +69,7 @@ namespace Casino.Common
                     lock (_queueLock)
                     {
                         if (_currentTask != null && !_currentTask.IsCancelled)
-                            _taskQueue.Enqueue(_currentTask);
-
-                        if (!_taskQueue.IsEmpty)
-                        {
-                            var copy = _taskQueue.ToArray().Where(x => !x.IsCancelled).OrderBy(x => x.ExecutionTime);
-
-                            //Didn't do ClearQueue() since nested lock
-                            while (_taskQueue.TryDequeue(out _))
-                            {
-                            }
-
-                            foreach (var item in copy)
-                                _taskQueue.Enqueue(item);
-                        }
+                            _collection.Add(_currentTask);
 
                         _cts.Dispose();
                         _cts = new CancellationTokenSource();
