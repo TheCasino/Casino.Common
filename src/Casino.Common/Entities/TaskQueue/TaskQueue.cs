@@ -16,6 +16,8 @@ namespace Casino.Common
 
         private IScheduledTask _currentTask;
 
+        private static readonly TimeSpan _maxTime = TimeSpan.FromMilliseconds(int.MaxValue);
+
         /// <summary>
         /// Creates a new TaskQueue.
         /// </summary>
@@ -38,11 +40,8 @@ namespace Casino.Common
 
         private async Task HandleCallbacksAsync()
         {
-            while (true)
+            while (!_disposed)
             {
-                if (_disposed)
-                    break;
-
                 try
                 {
                     bool wait;
@@ -51,24 +50,30 @@ namespace Casino.Common
                         wait = !_collection.MoveNext(out _currentTask);
 
                     if (wait)
-                        await Task.Delay(-1, _cts.Token);
+                        await Task.Delay(-1, _cts.Token).ConfigureAwait(false);
 
                     var time = _currentTask.ExecutionTime - DateTimeOffset.UtcNow;
 
+                    while(time > _maxTime)
+                    {
+                        await Task.Delay(_maxTime, _cts.Token).ConfigureAwait(false);
+                        time = _currentTask.ExecutionTime - DateTimeOffset.UtcNow;
+                    }
+
                     if (time > TimeSpan.Zero)
-                        await Task.Delay(time, _cts.Token);
+                        await Task.Delay(time, _cts.Token).ConfigureAwait(false);
 
                     if (_currentTask.IsCancelled)
                         continue;
 
-                    await _currentTask.ExecuteAsync();
+                    await _currentTask.ExecuteAsync().ConfigureAwait(false);
                     _currentTask.Completed();
                 }
                 catch (TaskCanceledException)
                 {
                     lock (_queueLock)
                     {
-                        if (_currentTask != null && !_currentTask.IsCancelled)
+                        if (_currentTask?.IsCancelled == false)
                             _collection.Add(_currentTask);
 
                         _cts.Dispose();
@@ -80,7 +85,7 @@ namespace Casino.Common
                     _currentTask?.SetException(e);
 
                     if (OnError != null)
-                        await OnError(e);
+                        await OnError(e).ConfigureAwait(false);
                 }
             }
         }

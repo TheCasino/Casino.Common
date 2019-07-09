@@ -111,7 +111,7 @@ namespace Casino.Common
             => _collection.Clear();
 
         /// <summary>
-        /// How many items are in the collections.
+        /// How many items are in the collection.
         /// </summary>
         public int Count
             => _collection.Count;

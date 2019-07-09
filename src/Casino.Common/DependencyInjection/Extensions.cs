@@ -19,6 +19,16 @@ namespace Casino.DependencyInjection
             return collection;
         }
 
+        public static IServiceCollection AddServices(this IServiceCollection collection, IDictionary<Type, Type> types)
+        {
+            foreach(var (type, impl) in types)
+            {
+                collection.AddSingleton(impl, type);
+            }
+
+            return collection;
+        }
+
         public static void Inject(this IServiceProvider services, object obj)
         {
             var members = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
