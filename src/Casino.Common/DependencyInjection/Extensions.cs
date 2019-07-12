@@ -23,7 +23,7 @@ namespace Casino.DependencyInjection
         {
             foreach(var (type, impl) in types)
             {
-                collection.AddSingleton(impl, type);
+                collection.AddSingleton(type, impl);
             }
 
             return collection;
