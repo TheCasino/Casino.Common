@@ -11,7 +11,7 @@
     <PackageId>TheCasino.Common</PackageId>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.2.5</Version>
+    <Version>1.2.6</Version>
     <RootNamespace>Casino</RootNamespace>
   </PropertyGroup>
 
