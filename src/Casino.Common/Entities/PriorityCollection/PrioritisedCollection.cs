@@ -82,10 +82,7 @@ namespace Casino.Common
 
                 _collection.RemoveAt(_highestIndex);
 
-                if (_collection.Count == 0)
-                    return false;
-
-                _highestPriority = _collection[0];
+                _highestPriority = _collection.Count == 0 ? default : _collection[0];
 
                 _highestIndex = 0;
 
