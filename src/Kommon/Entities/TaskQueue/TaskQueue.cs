@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Casino.Common
+namespace Kommon.Common
 {
     /// <summary>
     /// A simple task scheduler.

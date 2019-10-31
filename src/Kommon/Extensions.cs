@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Casino
+namespace Kommon
 {
     public static class Extensions
     {

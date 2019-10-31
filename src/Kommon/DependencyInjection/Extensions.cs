@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Casino.DependencyInjection
+namespace Kommon.DependencyInjection
 {
     public static class Extensions
     {

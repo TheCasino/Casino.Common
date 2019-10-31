@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Casino.Common
+namespace Kommon.Common
 {
     internal interface IScheduledTask
     {

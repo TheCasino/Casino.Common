@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Casino.Common
+namespace Kommon.Common
 {
     public class PrioritisedCollection : PrioritisedCollection<object>
     {

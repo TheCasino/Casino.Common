@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Casino.Common
+namespace Kommon.Common
 {
     public sealed class TaskCompletedException : Exception
     {

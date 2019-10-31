@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace Casino.Entities
+namespace Kommon.Entities
 {
     /// <summary>
     /// A wrapper of HashSet that locks its methods.

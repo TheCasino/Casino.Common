@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Casino.Linq
+namespace Kommon.Linq
 {
     public static partial class Extenions
     {

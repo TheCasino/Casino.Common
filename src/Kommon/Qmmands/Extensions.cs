@@ -1,4 +1,4 @@
-﻿using Casino.Linq;
+﻿using Kommon.Linq;
 using Qmmands;
 using System;
 using System.Collections;
@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Text;
 using Module = Qmmands.Module;
 
-namespace Casino.Qmmands
+namespace Kommon.Qmmands
 {
     public static class Extensions
     {

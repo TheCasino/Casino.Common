@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Casino.Common
+namespace Kommon.Common
 {
     /// <summary>
     /// An object that represents a task that has been scheduled.

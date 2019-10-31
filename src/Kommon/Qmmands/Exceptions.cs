@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Casino.Qmmands
+namespace Kommon.Qmmands
 {
     public class QuahuRenamedException : Exception
     {

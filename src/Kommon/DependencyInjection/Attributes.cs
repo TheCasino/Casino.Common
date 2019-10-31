@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Casino.DependencyInjection
+namespace Kommon.DependencyInjection
 {
     /// <inheritdoc />
     /// <summary>
