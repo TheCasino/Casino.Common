@@ -21,7 +21,7 @@ namespace Casino.DependencyInjection
 
         public static IServiceCollection AddServices(this IServiceCollection collection, IDictionary<Type, Type> types)
         {
-            foreach(var (type, impl) in types)
+            foreach (var (type, impl) in types)
             {
                 collection.AddSingleton(type, impl);
             }
@@ -31,23 +31,50 @@ namespace Casino.DependencyInjection
 
         public static void Inject(this IServiceProvider services, object obj)
         {
-            var members = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(x => x.GetCustomAttributes(typeof(InjectAttribute), true).Length > 0)
-                .ToArray();
+            var objType = obj.GetType();
+
+            var members = objType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Where(x => x.GetCustomAttributes(typeof(InjectAttribute), true).Length > 0);
+
+            Type type;
+            object value;
+
+            void SetFieldValue(FieldInfo field)
+            {
+                type = field.FieldType;
+                value = services.GetRequiredService(type);
+
+                field.SetValue(obj, value);
+            }
 
             foreach (var member in members)
             {
                 switch (member)
                 {
                     case FieldInfo fieldInfo:
-                        var type = fieldInfo.FieldType;
+                        SetFieldValue(fieldInfo);
 
-                        var value = services.GetService(type);
+                        break;
 
-                        if (value is null)
-                            continue;
+                    case PropertyInfo propInfo:
+                        type = propInfo.GetType();
 
-                        fieldInfo.SetValue(obj, value);
+                        var setMethod = propInfo.GetSetMethod(true);
+
+                        if (setMethod is null)
+                        {
+                            var field = objType.GetField($"<{propInfo.Name}>k__BackingField",
+                                BindingFlags.NonPublic | BindingFlags.Instance);
+
+                            SetFieldValue(field);
+                        }
+                        else
+                        {
+                            value = services.GetRequiredService(type);
+
+                            propInfo.SetValue(obj, value);
+                        }
+
                         break;
                 }
             }
