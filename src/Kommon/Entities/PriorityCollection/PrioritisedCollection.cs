@@ -2,121 +2,112 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Kommon.Common
-{
-    public class PrioritisedCollection : PrioritisedCollection<object>
-    {
-        public PrioritisedCollection(Predicate<(object, object)> predicate, int? capacity = null) : base(predicate, capacity)
-        {
-        }
-    }
+namespace Kommon.Common {
+	public class PrioritisedCollection : PrioritisedCollection<object> {
+		public PrioritisedCollection(Predicate<(object, object)> predicate, int? capacity = null) : base(predicate,
+			capacity) { }
+	}
 
-    /// <summary>
-    /// A collection that orders items in a given priority/
-    /// </summary>
-    /// <typeparam name="T">The type of the collection.</typeparam>
-    public class PrioritisedCollection<T> : IEnumerable<T>
-    {
-        private readonly List<T> _collection;
-        private readonly object _lock;
+	/// <summary>
+	/// A collection that orders items in a given priority/
+	/// </summary>
+	/// <typeparam name="T">The type of the collection.</typeparam>
+	public class PrioritisedCollection<T> : IEnumerable<T> {
+		private readonly List<T> _collection;
+		private readonly object _lock;
 
-        private readonly Predicate<(T, T)> _predicate;
+		private readonly Predicate<(T, T)> _predicate;
 
-        private T _highestPriority;
-        private int _highestIndex;
+		private T _highestPriority;
+		private int _highestIndex;
 
-        /// <summary>
-        /// Creates a new PrioritisedCollection.
-        /// </summary>
-        /// <param name="predicate">Determine whether the current highest priority takes prioritry over the new item being added.</param>
-        /// <param name="capacity">The capacity to use for the internal collection.</param>
-        public PrioritisedCollection(Predicate<(T, T)> predicate, int? capacity = null)
-        {
-            if (capacity != null)
-                _collection = new List<T>(capacity.Value);
-            else
-                _collection = new List<T>();
+		/// <summary>
+		/// Creates a new PrioritisedCollection.
+		/// </summary>
+		/// <param name="predicate">Determine whether the current highest priority takes prioritry over the new item being added.</param>
+		/// <param name="capacity">The capacity to use for the internal collection.</param>
+		public PrioritisedCollection(Predicate<(T, T)> predicate, int? capacity = null) {
+			if (capacity != null) {
+				this._collection = new List<T>(capacity.Value);
+			} else {
+				this._collection = new List<T>();
+			}
 
-            _lock = new object();
+			this._lock = new object();
 
-            _predicate = predicate;
-        }
+			this._predicate = predicate;
+		}
 
-        /// <summary>
-        /// Adds a new item to the collection.
-        /// </summary>
-        /// <param name="obj">The item to add.</param>
-        public void Add(T obj)
-        {
-            lock (_lock)
-            {
-                if (_collection.Count == 0)
-                {
-                    _highestIndex = 0;
-                    _highestPriority = obj;
-                }
+		/// <summary>
+		/// Adds a new item to the collection.
+		/// </summary>
+		/// <param name="obj">The item to add.</param>
+		public void Add(T obj) {
+			lock (this._lock) {
+				if (this._collection.Count == 0) {
+					this._highestIndex = 0;
+					this._highestPriority = obj;
+				}
 
-                _collection.Add(obj);
+				this._collection.Add(obj);
 
-                if (_collection.Count > 1 && _predicate((_highestPriority, obj)))
-                {
-                    _highestPriority = obj;
-                    _highestIndex = _collection.Count - 1;
-                }
-            }
-        }
+				if (this._collection.Count > 1 && this._predicate((this._highestPriority, obj))) {
+					this._highestPriority = obj;
+					this._highestIndex = this._collection.Count - 1;
+				}
+			}
+		}
 
-        /// <summary>
-        /// Removes the current highest priority from the collection.
-        /// </summary>
-        /// <param name="obj">The current highest priority.</param>
-        /// <returns>False if the collection is empty, true otherwise.</returns>
-        public bool MoveNext(out T obj)
-        {
-            lock (_lock)
-            {
-                obj = _highestPriority;
+		/// <summary>
+		/// Removes the current highest priority from the collection.
+		/// </summary>
+		/// <param name="obj">The current highest priority.</param>
+		/// <returns>False if the collection is empty, true otherwise.</returns>
+		public bool MoveNext(out T obj) {
+			lock (this._lock) {
+				obj = this._highestPriority;
 
-                if (_collection.Count == 0)
-                    return false;
+				if (this._collection.Count == 0) {
+					return false;
+				}
 
-                _collection.RemoveAt(_highestIndex);
+				this._collection.RemoveAt(this._highestIndex);
 
-                _highestPriority = _collection.Count == 0 ? default : _collection[0];
+				this._highestPriority = this._collection.Count == 0 ? default : this._collection[0];
 
-                _highestIndex = 0;
+				this._highestIndex = 0;
 
-                for (int i = 1; i < _collection.Count; i++)
-                {
-                    var item = _collection[i];
+				for (var i = 1; i < this._collection.Count; i++) {
+					T item = this._collection[i];
 
-                    if (_predicate((_highestPriority, item)))
-                    {
-                        _highestPriority = item;
-                        _highestIndex = i;
-                    }
-                }
+					if (this._predicate((this._highestPriority, item))) {
+						this._highestPriority = item;
+						this._highestIndex = i;
+					}
+				}
 
-                return true;
-            }
-        }
+				return true;
+			}
+		}
 
-        /// <summary>
-        /// Clears the collection.
-        /// </summary>
-        public void Clear()
-            => _collection.Clear();
+		/// <summary>
+		/// Clears the collection.
+		/// </summary>
+		public void Clear() {
+			this._collection.Clear();
+		}
 
-        /// <summary>
-        /// How many items are in the collection.
-        /// </summary>
-        public int Count
-            => _collection.Count;
+		/// <summary>
+		/// How many items are in the collection.
+		/// </summary>
+		public int Count => this._collection.Count;
 
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-            => _collection.GetEnumerator();
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() {
+			return this._collection.GetEnumerator();
+		}
 
-        IEnumerator IEnumerable.GetEnumerator()
-            => _collection.GetEnumerator();
-    }
+		IEnumerator IEnumerable.GetEnumerator() {
+			return this._collection.GetEnumerator();
+		}
+	}
 }

@@ -4,7 +4,6 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>preview</LangVersion>
     <Authors>k-boyle</Authors>
-    <Company>k-boyle</Company>
     <Product />
     <Description>A small collection of stuff I commonly use in my projects</Description>
     <PackageTags>k-boyle kommon</PackageTags>
@@ -13,7 +12,7 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Version>2.0.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageVersion>0.0.1</PackageVersion>
+    <PackageVersion>0.0.2</PackageVersion>
     <RepositoryUrl>https://github.com/k-boyle/Kommon</RepositoryUrl>
   </PropertyGroup>
 
